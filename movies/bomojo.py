@@ -2,10 +2,12 @@ import sys
 import re
 import urllib2
 import scraper
-from bs4 import BeautifulSoup
 import dateutil.parser
 import urlparse
+import string
 import numpy as np
+from bs4 import BeautifulSoup
+
 
 class BOMojoScraper(scraper.Scraper):
 
@@ -46,6 +48,7 @@ class BOMojoScraper(scraper.Scraper):
         runtime = self.runtime_to_minutes(self.get_movie_value(soup,'Runtime'))
         director = self.get_movie_value(soup,'Director')
         rating = self.get_movie_value(soup,'MPAA Rating')
+        # budget = self.get_movie_value(soup, 'Budget')
 
         movie_dict = {
             'movie_title':self.get_movie_title(soup),
@@ -82,6 +85,7 @@ class BOMojoScraper(scraper.Scraper):
             sibling_cell = obj.find_parent('tr').findNextSibling()
             if sibling_cell:
                 return sibling_cell.text
+                # # Code to put directors into lists
                 # director_list = []
                 # messy_director_list = sibling_cell.find_all(
                         # 'a', href=re.compile('/\?view=Director'))
@@ -106,8 +110,6 @@ class BOMojoScraper(scraper.Scraper):
             obj = obj.split('(')[0]
             return obj
 
-
-
     def get_movie_title(self,soup):
         title_tag = soup.find('title')
         movie_title = title_tag.text.split('(')[0].strip()
@@ -119,10 +121,79 @@ class BOMojoScraper(scraper.Scraper):
     def money_to_int(self,moneystring):
         return int(moneystring.replace('$','').replace(',',''))
 
-
-
     def runtime_to_minutes(self,runtimestring):
         if runtimestring == 'N/A':
             return np.nan
         rt = runtimestring.split(' ')
         return int(rt[0])*60 + int(rt[2])
+
+
+
+class BOMMassScrape(BOMojoScraper):
+    def build_list_of_recent_movies(self, startingyear=2013, endingyear=2014):
+        recent_movie_urls = []
+        years = range(startingyear, endingyear + 1)
+        for year in years:
+            year = str(year)
+            oneurl = self.base_url + 'yearly/chart/?page=1&view=releasedate&view2=domestic&yr=' + year + '&p=.htm'
+            try:
+                print oneurl
+                one_page_movie_list = self.get_single_page_movie_urls(oneurl)
+                for movie in one_page_movie_list:
+                    recent_movie_urls.append(movie)
+            except HTTPError:
+                print 'Failure opening %s' % oneurl
+                break
+        return recent_movie_urls
+
+    def build_list_of_all_movies(self):
+        all_movie_urls = []
+
+        for letter in ['NUM'] + list(string.ascii_uppercase):
+            valid_num = True
+            n = 1
+
+            while valid_num:
+                n = str(n)
+                oneurl = ms.base_url + 'movies/alphabetical.htm?letter=' + letter + '&page=' + n + '&p=1.htm'
+                try:
+                    print oneurl
+                    one_page_movie_list = self.get_single_page_movie_urls(oneurl)
+                    if len(one_page_movie_list) == 0:
+                        break
+                    for movie in one_page_movie_list:
+                        all_movie_urls.append(movie)
+                    n = int(n) + 1
+                except HTTPError:
+                    print 'Failure opening %s' % oneurl
+                    break
+
+    def clean_movie_url_lists(self, alist):
+        list = list(set(alist))
+        return list
+
+    def get_movie_dicts_from_URL_list_page(self, urllist):
+        grand_movie_list = []
+        problem_movie_list = []
+        for num, movie_url in enumerate(urllist):
+            try:
+                movie_info = self.parse_full_mojo_page(movie_url)
+                grand_movie_list.append(movie_info)
+                print "Parsed", movie_info['movie_title']
+            except (AttributeError, TypeError):
+                problem_movie_list.append(movie_url)
+        return grand_movie_list, problem_movie_list
+
+
+    def get_single_page_movie_urls(self, url):
+        soup = self.connect(url)
+        obj = soup.find_all('a', href=re.compile('/movies/\?id='))
+
+
+        movie_urls = []
+        for movie in obj:
+            if '#1 Movie' not in movie.text:
+                full_url = self.base_url + movie['href']
+                movie_urls.append(full_url)
+        return movie_urls
+
