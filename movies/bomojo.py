@@ -48,7 +48,7 @@ class BOMojoScraper(scraper.Scraper):
         runtime = self.runtime_to_minutes(self.get_movie_value(soup,'Runtime'))
         director = self.get_movie_value(soup,'Director')
         rating = self.get_movie_value(soup,'MPAA Rating')
-        # budget = self.get_movie_value(soup, 'Budget')
+        budget = self.budget_to_int(self.get_movie_value(soup, 'Production Budget'))
 
         movie_dict = {
             'movie_title':self.get_movie_title(soup),
@@ -56,7 +56,8 @@ class BOMojoScraper(scraper.Scraper):
             'domestic_total_gross':domestic_total_gross,
             'runtime':runtime,
             'director':director,
-            'rating':rating
+            'rating':rating,
+            'budget':budget
         }
 
         return movie_dict
@@ -127,10 +128,23 @@ class BOMojoScraper(scraper.Scraper):
         rt = runtimestring.split(' ')
         return int(rt[0])*60 + int(rt[2])
 
+    def budget_to_int(self, budgetstring):
+        if budgetstring == 'N/A':
+            return np.nan
+        budgetstring = budgetstring.replace('$','').replace(',','').split(' ')
+        if len(budgetstring) == 1:
+            return float(budgetstring[0])
+        else:
+            budget = float(budgetstring[0])*int(self.mag_dict[budgetstring[1].lower()])
+            return budget
+
 
 
 class BOMMassScrape(BOMojoScraper):
-    def build_list_of_recent_movies(self, startingyear=2013, endingyear=2014):
+
+    mag_dict = {'thousand': 1000, 'million': 1000000, 'billion': 1000000000}
+
+    def build_list_of_recent_movies(self, startingyear=2014, endingyear=2014):
         recent_movie_urls = []
         years = range(startingyear, endingyear + 1)
         for year in years:
@@ -144,7 +158,8 @@ class BOMMassScrape(BOMojoScraper):
             except HTTPError:
                 print 'Failure opening %s' % oneurl
                 break
-        return recent_movie_urls
+        return self.clean_movie_url_lists(recent_movie_urls)
+
 
     def build_list_of_all_movies(self):
         all_movie_urls = []
@@ -167,19 +182,20 @@ class BOMMassScrape(BOMojoScraper):
                 except HTTPError:
                     print 'Failure opening %s' % oneurl
                     break
+        return self.clean_movie_url_lists(all_movie_urls)
 
     def clean_movie_url_lists(self, alist):
-        list = list(set(alist))
-        return list
+        alist = list(set(alist))
+        return alist
 
     def get_movie_dicts_from_URL_list_page(self, urllist):
         grand_movie_list = []
         problem_movie_list = []
         for num, movie_url in enumerate(urllist):
             try:
+                print "Parsing", movie_url
                 movie_info = self.parse_full_mojo_page(movie_url)
                 grand_movie_list.append(movie_info)
-                print "Parsed", movie_info['movie_title']
             except (AttributeError, TypeError):
                 problem_movie_list.append(movie_url)
         return grand_movie_list, problem_movie_list
