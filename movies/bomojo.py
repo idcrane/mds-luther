@@ -7,12 +7,14 @@ import urlparse
 import string
 import numpy as np
 from bs4 import BeautifulSoup
+from urllib2 import HTTPError
 
 
 class BOMojoScraper(scraper.Scraper):
 
     base_url = "http://www.boxofficemojo.com/"
     search_url = base_url + "search/?q=%s"
+    east_asian_countries = ['China', 'Hong Kong', 'Japan', 'Macau', 'South Korea', 'Mongolia', 'Taiwan']
 
     def full_movie_dict_from_title(self,movie_name):
         return self.parse_full_mojo_page(self.get_full_page_url_from_title(movie_name))
@@ -32,6 +34,29 @@ class BOMojoScraper(scraper.Scraper):
         print >> sys.stderr, log_message
         return -1
 
+    def parse_full_mojo_page_foreign(self, full_page_url):
+        try:
+            soup_foreign = self.connect(self.get_foreign_info_URL(full_page_url))
+            countries_dictionary = {}
+            for country in self.east_asian_countries:
+                country_line = soup_foreign.find(text=re.compile(country))
+                if country_line != None:
+                    country_release_date = country_line.find_parent('td').findNextSibling().findNextSibling()
+                    country_gross_string = country_release_date.findNextSibling().findNextSibling().findNextSibling()
+                    if country_release_date.text != '-':
+                        date = dateutil.parser.parse(country_release_date.text)
+                    else:
+                        date = np.nan
+                    if country_gross_string.text != '-':
+                        gross = self.money_to_int(country_gross_string.text)
+                    else:
+                        gross = np.nan
+                    country_dict = {country+'_release date': date, country+' total_gross': gross}
+                    countries_dictionary.update(country_dict)
+            return countries_dictionary
+        except HTTPError:
+            return {}
+
 
     def parse_full_mojo_page(self,full_page_url):
         soup = self.connect(full_page_url)
@@ -49,6 +74,7 @@ class BOMojoScraper(scraper.Scraper):
         director = self.get_movie_value(soup,'Director')
         rating = self.get_movie_value(soup,'MPAA Rating')
         budget = self.budget_to_int(self.get_movie_value(soup, 'Production Budget'))
+        actors = self.get_actors(soup)
 
         movie_dict = {
             'movie_title':self.get_movie_title(soup),
@@ -57,8 +83,12 @@ class BOMojoScraper(scraper.Scraper):
             'runtime':runtime,
             'director':director,
             'rating':rating,
-            'budget':budget
+            'budget':budget,
+            'actors':actors
         }
+
+        foreign_dict = self.parse_full_mojo_page_foreign(full_page_url)
+        movie_dict.update(foreign_dict)
 
         return movie_dict
 
@@ -71,10 +101,6 @@ class BOMojoScraper(scraper.Scraper):
         obj = soup.find(text=re.compile(value_name))
         if obj == None:
             return None
-        # if obj == None:
-        #     return -1
-        # else:
-        #     return None
 
         # this works for most of the values
         next_sibling = obj.findNextSibling()
@@ -100,6 +126,12 @@ class BOMojoScraper(scraper.Scraper):
         else:
             return -1
 
+
+    def get_foreign_info_URL(self, url):
+        url = url.split('?')
+        return url[0] + '?page=intl&' + url[1]
+
+
     def deal_with_gross_total_problems(self,soup):
         try:
             obj = soup.find(text-re.compile('Estimate'))
@@ -110,6 +142,10 @@ class BOMojoScraper(scraper.Scraper):
             obj = obj.find_parent('font').findNextSibling().text
             obj = obj.split('(')[0]
             return obj
+
+    def get_actors(self, soup):
+        messy_actor_list = soup.find_all('a', href=re.compile('/\?view=Actor'))
+        return [actor.text for actor in messy_actor_list if 'Actors' not in actor.text]
 
     def get_movie_title(self,soup):
         title_tag = soup.find('title')
