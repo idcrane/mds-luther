@@ -221,6 +221,8 @@ class BOMMassScrape(BOMojoScraper):
             n = 1
 
             while valid_num:
+                if letter == 'NUM' and n == 2:
+                    break
                 n = str(n)
                 oneurl = self.base_url + 'movies/alphabetical.htm?letter=' + letter + '&page=' + n + '&p=1.htm'
                 try:
