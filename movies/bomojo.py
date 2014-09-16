@@ -47,10 +47,15 @@ class BOMojoScraper(scraper.Scraper):
                         date = dateutil.parser.parse(country_release_date.text)
                     else:
                         date = np.nan
-                    if country_gross_string.text != '-':
-                        gross = self.money_to_int(country_gross_string.text)
-                    else:
-                        gross = np.nan
+                    try:
+                        if country_gross_string.text == '-':
+                            return np.nan
+                        else:
+                            if country_gross_string.text == 'Final':
+                                country_gross_string = country_release_date.findNextSibling().findNextSibling()
+                            gross = self.money_to_int(country_gross_string.text)
+                    except ValueError:
+                        return np.nan
                     country_dict = {country+'_release date': date, country+' total_gross': gross}
                     countries_dictionary.update(country_dict)
             return countries_dictionary
@@ -59,39 +64,44 @@ class BOMojoScraper(scraper.Scraper):
 
 
     def parse_full_mojo_page(self,full_page_url):
-        soup = self.connect(full_page_url)
-
-        release_date = self.to_date(
-            self.get_movie_value(soup,'Release Date'))
-        domestic_total_gross_string = self.get_movie_value(soup, 'Domestic Total Gross')
         try:
-            domestic_total_gross = self.money_to_int(domestic_total_gross_string)
-        except AttributeError:
-            domestic_total_gross_string = self.deal_with_gross_total_problems(soup)
-            domestic_total_gross = self.money_to_int(domestic_total_gross_string)
+            soup = self.connect(full_page_url)
 
-        runtime = self.runtime_to_minutes(self.get_movie_value(soup,'Runtime'))
-        director = self.get_movie_value(soup,'Director')
-        rating = self.get_movie_value(soup,'MPAA Rating')
-        budget = self.budget_to_int(self.get_movie_value(soup, 'Production Budget'))
-        actors = self.get_actors(soup)
 
-        movie_dict = {
-            'movie_title':self.get_movie_title(soup),
-            'release_date':release_date,
-            'domestic_total_gross':domestic_total_gross,
-            'runtime':runtime,
-            'director':director,
-            'rating':rating,
-            'budget':budget,
-            'actors':actors
-        }
+            release_date = self.to_date(
+                self.get_movie_value(soup,'Release Date'))
+            domestic_total_gross_string = self.get_movie_value(soup, 'Domestic Total Gross')
+            try:
+                domestic_total_gross = self.money_to_int(domestic_total_gross_string)
+            except AttributeError:
+                domestic_total_gross_string = self.deal_with_gross_total_problems(soup)
+                domestic_total_gross = self.money_to_int(domestic_total_gross_string)
 
-        foreign_dict = self.parse_full_mojo_page_foreign(full_page_url)
-        movie_dict.update(foreign_dict)
+            runtime = self.runtime_to_minutes(self.get_movie_value(soup,'Runtime'))
+            director = self.get_movie_value(soup,'Director')
+            rating = self.get_movie_value(soup,'MPAA Rating')
+            budget = self.budget_to_int(self.get_movie_value(soup, 'Production Budget'))
+            actors = self.get_actors(soup)
+            genre = self.get_genre(soup)
 
-        return movie_dict
+            movie_dict = {
+                'movie_title':self.get_movie_title(soup),
+                'release_date':release_date,
+                'domestic_total_gross':domestic_total_gross,
+                'runtime':runtime,
+                'director':director,
+                'rating':rating,
+                'budget':budget,
+                'actors':actors,
+                'genre':genre
+            }
 
+            foreign_dict = self.parse_full_mojo_page_foreign(full_page_url)
+            movie_dict.update(foreign_dict)
+
+            return movie_dict
+        except (HTTPError, UnicodeEncodeError):
+            return {}
 
     def get_movie_value(self,soup,value_name):
         '''
@@ -144,8 +154,14 @@ class BOMojoScraper(scraper.Scraper):
             return obj
 
     def get_actors(self, soup):
-        messy_actor_list = soup.find_all('a', href=re.compile('/\?view=Actor'))
-        return [actor.text for actor in messy_actor_list if 'Actors' not in actor.text]
+        quoted = re.compile('>[A-Za-z ]+<')
+        obj = str(soup.find('a', href=re.compile('/people/\?view=Actor')).find_parent('tr').findNextSibling())
+        out = re.findall(quoted, obj)
+        return [element.replace('>', '').replace('<', '') for element in out]
+
+    def get_genre(self, soup):
+        genre_string = soup.find(text=re.compile('Genre: ')).find_parent().text.split(': ')
+        return genre_string[1]
 
     def get_movie_title(self,soup):
         title_tag = soup.find('title')
@@ -206,7 +222,7 @@ class BOMMassScrape(BOMojoScraper):
 
             while valid_num:
                 n = str(n)
-                oneurl = ms.base_url + 'movies/alphabetical.htm?letter=' + letter + '&page=' + n + '&p=1.htm'
+                oneurl = self.base_url + 'movies/alphabetical.htm?letter=' + letter + '&page=' + n + '&p=1.htm'
                 try:
                     print oneurl
                     one_page_movie_list = self.get_single_page_movie_urls(oneurl)
@@ -232,7 +248,7 @@ class BOMMassScrape(BOMojoScraper):
                 print "Parsing", movie_url
                 movie_info = self.parse_full_mojo_page(movie_url)
                 grand_movie_list.append(movie_info)
-            except (AttributeError, TypeError):
+            except:  #(AttributeError, TypeError):
                 problem_movie_list.append(movie_url)
         return grand_movie_list, problem_movie_list
 
