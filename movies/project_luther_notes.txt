@@ -1,0 +1,13 @@
+*Show big picture (how does MSE change as more features are added to model)?
+*Show overall model (like the plots you have)
+*Show story with a few well known individual movies — how it actually did, and then show how well (or not) each model would have predicted that success. 
+
+Always relate it to something the client cares about or understands
+
+
+python tesseract
+
+
+Things that don’t work
+* US Rating
+* Release day deltas with US

@@ -68,21 +68,47 @@ class BOMojoScraper(scraper.Scraper):
             soup = self.connect(full_page_url)
 
 
-            release_date = self.to_date(
-                self.get_movie_value(soup,'Release Date'))
-            domestic_total_gross_string = self.get_movie_value(soup, 'Domestic Total Gross')
             try:
-                domestic_total_gross = self.money_to_int(domestic_total_gross_string)
-            except AttributeError:
-                domestic_total_gross_string = self.deal_with_gross_total_problems(soup)
-                domestic_total_gross = self.money_to_int(domestic_total_gross_string)
+                release_date = self.to_date(
+                    self.get_movie_value(soup,'Release Date'))
+            except (AttributeError, TypeError):
+                release_date = np.nan
 
-            runtime = self.runtime_to_minutes(self.get_movie_value(soup,'Runtime'))
-            director = self.get_movie_value(soup,'Director')
-            rating = self.get_movie_value(soup,'MPAA Rating')
-            budget = self.budget_to_int(self.get_movie_value(soup, 'Production Budget'))
-            actors = self.get_actors(soup)
-            genre = self.get_genre(soup)
+            try:
+                domestic_total_gross_string = self.get_movie_value(soup, 'Domestic Total Gross')
+                domestic_total_gross = self.money_to_int(domestic_total_gross_string)
+            except (AttributeError, TypeError):
+                try:
+                    domestic_total_gross_string = self.deal_with_gross_total_problems(soup)
+                    domestic_total_gross = self.money_to_int(domestic_total_gross_string)
+                except (AttributeError, TypeError):
+                    domestic_total_gross = np.nan
+
+            try:
+                runtime = self.runtime_to_minutes(self.get_movie_value(soup,'Runtime'))
+            except (AttributeError, TypeError):
+                runtime = np.nan
+
+            try:
+                director = self.get_movie_value(soup,'Director')
+            except (AttributeError, TypeError):
+                director = None
+
+            try:
+                rating = self.get_movie_value(soup,'MPAA Rating')
+                budget = self.budget_to_int(self.get_movie_value(soup, 'Production Budget'))
+            except (AttributeError, TypeError):
+                budget = np.nan
+
+            try:
+                actors = self.get_actors(soup)
+            except (AttributeError, TypeError):
+                actors = {}
+
+            try:
+                genre = self.get_genre(soup)
+            except (AttributeError, TypeError):
+                genre = None
 
             movie_dict = {
                 'movie_title':self.get_movie_title(soup),
@@ -96,8 +122,12 @@ class BOMojoScraper(scraper.Scraper):
                 'genre':genre
             }
 
-            foreign_dict = self.parse_full_mojo_page_foreign(full_page_url)
-            movie_dict.update(foreign_dict)
+            try:
+                foreign_dict = self.parse_full_mojo_page_foreign(full_page_url)
+                movie_dict.update(foreign_dict)
+            except (AttributeError, TypeError):
+                pass
+
 
             return movie_dict
         except (HTTPError, UnicodeEncodeError):
@@ -250,7 +280,7 @@ class BOMMassScrape(BOMojoScraper):
                 print "Parsing", movie_url
                 movie_info = self.parse_full_mojo_page(movie_url)
                 grand_movie_list.append(movie_info)
-            except:  #(AttributeError, TypeError):
+            except  HTTPError: #(AttributeError, TypeError):
                 problem_movie_list.append(movie_url)
         return grand_movie_list, problem_movie_list
 
