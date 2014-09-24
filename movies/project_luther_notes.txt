@@ -11,3 +11,13 @@ python tesseract
 Things that don’t work
 * US Rating
 * Release day deltas with US
+
+
+
+* Cross validation to find if actors help (nope)
+* Compare (for China) similar number of movies with actors to those without
+
+
+* China is like a stock market — quite risky to predict amount studio will make, but you probably will make some
+
+* South Korea — you’ll make less, but you’ll be more certain of what you’re making

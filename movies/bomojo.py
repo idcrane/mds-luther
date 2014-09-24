@@ -130,7 +130,7 @@ class BOMojoScraper(scraper.Scraper):
 
 
             return movie_dict
-        except (HTTPError, UnicodeEncodeError):
+        except:
             return {}
 
     def get_movie_value(self,soup,value_name):
