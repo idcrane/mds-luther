@@ -3,7 +3,7 @@ mds-luther
 
 ###Predicting East Asian Movie Sucess
 
-For a blog post describing this project, ![click here](https://www.idcrane.com/blog/2014/10/23/predicting-east-asian-movie-success/)
+For a blog post describing this project, [click here](https://www.idcrane.com/blog/2014/10/23/predicting-east-asian-movie-success/)
 
 All work is done from the IPython notebook, using classes and methods from the other .py files. 
 
