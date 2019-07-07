@@ -1,2 +1,4 @@
 class_notes_private
 data
+.DS_Store
+.ipynb_checkpoints

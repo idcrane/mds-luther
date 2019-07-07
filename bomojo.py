@@ -233,12 +233,12 @@ class BOMMassScrape(BOMojoScraper):
             year = str(year)
             oneurl = self.base_url + 'yearly/chart/?page=1&view=releasedate&view2=domestic&yr=' + year + '&p=.htm'
             try:
-                print oneurl
+                print(oneurl)
                 one_page_movie_list = self.get_single_page_movie_urls(oneurl)
                 for movie in one_page_movie_list:
                     recent_movie_urls.append(movie)
             except HTTPError:
-                print 'Failure opening %s' % oneurl
+                print('Failure opening %s' % oneurl)
                 break
         return self.clean_movie_url_lists(recent_movie_urls)
 
@@ -256,7 +256,7 @@ class BOMMassScrape(BOMojoScraper):
                 n = str(n)
                 oneurl = self.base_url + 'movies/alphabetical.htm?letter=' + letter + '&page=' + n + '&p=1.htm'
                 try:
-                    print oneurl
+                    print(oneurl)
                     one_page_movie_list = self.get_single_page_movie_urls(oneurl)
                     if len(one_page_movie_list) == 0:
                         break
@@ -264,7 +264,7 @@ class BOMMassScrape(BOMojoScraper):
                         all_movie_urls.append(movie)
                     n = int(n) + 1
                 except HTTPError:
-                    print 'Failure opening %s' % oneurl
+                    print('Failure opening %s' % oneurl)
                     break
         return self.clean_movie_url_lists(all_movie_urls)
 
@@ -275,9 +275,9 @@ class BOMMassScrape(BOMojoScraper):
     def get_movie_dicts_from_URL_list_page(self, urllist):
         grand_movie_list = []
         problem_movie_list = []
-        for num, movie_url in enumerate(urllist):
+        for _, movie_url in enumerate(urllist):
             try:
-                print "Parsing", movie_url
+                print("Parsing", movie_url)
                 movie_info = self.parse_full_mojo_page(movie_url)
                 grand_movie_list.append(movie_info)
             except  HTTPError: #(AttributeError, TypeError):
